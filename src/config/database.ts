@@ -1,10 +1,17 @@
 import mongoose from 'mongoose';
-import { env } from './env';
-import logger from '@shared/utils/logger';
+import { env } from './env.js';
+import logger from '../shared/utils/logger.js';
 
 const connectDB = async (): Promise<void> => {
   try {
-    const conn = await mongoose.connect(env.mongodbUri, {
+
+    let dbUri = env.mongodbUri;
+    /* if (dbUri.includes('localhost') || dbUri.includes('mongo') || dbUri.includes('host.docker.internal')) {
+      dbUri = 'mongodb://127.0.0.1:27017/hrms_dev';
+    } */
+    logger.info(`📡 Attempting to connect to MongoDB at: ${dbUri}`);
+
+    const conn = await mongoose.connect(dbUri, {
       maxPoolSize: 10,
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,

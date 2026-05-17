@@ -6,7 +6,7 @@ services:
     container_name: hrms-api
     restart: unless-stopped
     ports:
-      - "5000:5000"
+      - "5005:5000"
     environment:
       - NODE_ENV=development
       - PORT=5000
