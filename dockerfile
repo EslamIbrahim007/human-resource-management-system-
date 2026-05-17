@@ -1,32 +1,20 @@
-# ── Stage 1: Build ────────────────────────────────────────────────────────────
-FROM node:20-alpine AS builder
-
+# ---- Development ----
+FROM node:20-alpine AS development
 WORKDIR /app
-
-# Install ALL dependencies (including devDependencies for tsc + @types/*)
 COPY package*.json ./
-RUN npm ci
+RUN npm install
+COPY . .
+EXPOSE 5000
+CMD ["npm", "run", "dev"]
 
-# Copy source and compile
+# ---- Production ----
+FROM node:20-alpine AS production
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
 COPY . .
 RUN npm run build
-
-# ── Stage 2: Production image ─────────────────────────────────────────────────
-FROM node:20-alpine AS runner
-
-WORKDIR /app
-
-# Copy compiled output and package files
-COPY --from=builder /app/dist ./dist
-COPY package*.json ./
-
-# Install production dependencies only
-RUN npm ci --only=production
-
-# Create non-root user
 RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
 USER nodejs
-
 EXPOSE 5000
-
 CMD ["node", "dist/server.js"]
