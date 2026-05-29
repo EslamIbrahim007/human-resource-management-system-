@@ -1,105 +1,163 @@
-import { Schema, model } from "mongoose";
-import bcrypt from 'bcryptjs';
+import { Schema, model, Document } from "mongoose";
 
-// Import the Employee model
-
-const employeeSchema = new Schema({
-  // Basic Information
-  firstName: {
-    type: String,
-    required: true
-  },
-  lastName: {
-    type: String,
-    required: true
-  },
-  email: {
-    type: String,
-    required: true,
-    unique: true
-  },
-  phone: {
-    type: String,
-  },
-  address: {
-    street: { type: String },
-    city: { type: String },
-  },
-  dateOfBirth: { type: Date },
-
-  // Work Information
-  
-  dateOfJoining: {
-    type: Date,
-  },
-  employmentStatus: {
-    type: String,
-    enum: ['Active', 'OnLeave', 'Terminated'],
-    default: 'Active'
-  },
-
-  // Financial Information
-  salary: { type: Number },
-  bonuses: { type: Number, default: 0 },
-  deductions: { type: Number, default: 0 },
+//  Interface for Employee Document
+export interface IEmployee extends Document {
+  employeeCode: string;
+  userId: Schema.Types.ObjectId;
+  departmentId: Schema.Types.ObjectId;
+  managerId?: Schema.Types.ObjectId;
+  isDeleted: boolean;
+  deletedAt?: Date | null;
+  deletedBy?: Schema.Types.ObjectId | null;
+  personalInfo: {
+    firstName: string;
+    lastName: string;
+    dateOfBirth?: Date;
+    gender?: 'male' | 'female' | 'prefer_not_to_say';
+    phone?: string;
+    personalEmail?: string;
+    address?: {
+      street?: string;
+      city?: string;
+      state?: string;
+      zipCode?: string;
+      country?: string;
+    };
+  };
+  workInfo: {
+    designation: string;
+    employmentType: 'full_time' | 'part_time' | 'contract' | 'intern';
+    joinDate: Date;
+    probationEndDate?: Date;
+    workLocation?: string;
+    status: 'active' | 'probation' | 'on_leave' | 'terminated' | 'resigned';
+    exitDate?: Date;
+    exitReason?: 'resignation' | 'termination' | 'retirement' | 'end_of_contract';
+  };
   bankDetails: {
-    bankName: { type: String },
+    bankName?: string;
+    branch?: string;
+    accountNumber?: string;
+    ifscCode?: string;
+      };
+  documents: {
+    type: 'contract' | 'id_proof' | 'certification' | 'resume' | 'offer_letter' | 'other';
+    url: string;
+    originalName?: string;
+    uploadedAt: Date;
+  }[];
+  emergencyContact?: {
+    name?: string;
+    phone?: string;
+    relationship?: string;
+  };
+  fullName?: string; // Virtual field
+  compensation?: {
+    currentSalary?: number;
+    currency?: string;
+  };
+}
+
+//Schema Definition
+const employeeSchema = new Schema<IEmployee>({
+  // Top-level identifiers:
+  employeeCode: { type: String, required: true, unique: true, immutable: true },
+  userId: { type: Schema.Types.ObjectId, ref: 'User', unique: true, required: true },
+  departmentId: { type: Schema.Types.ObjectId, ref: 'Department', required: true },
+  managerId: { type: Schema.Types.ObjectId, ref: 'Employee' },
+
+  // personalInfo
+  personalInfo: {
+    firstName: { type: String, required: true, trim: true },
+    lastName: { type: String, required: true, trim: true },
+    dateOfBirth: { type: Date },
+    gender: { type: String, enum: ['male', 'female', 'prefer_not_to_say'] },
+    phone: { type: String },
+    personalEmail: { type: String, lowercase: true },
+    address: {
+      street: { type: String, trim: true },
+      city: { type: String, trim: true },
+      state: { type: String, trim: true },
+      zipCode: { type: String, trim: true },
+      country: { type: String, trim: true },
+    },
+  },
+
+  // workInfo
+  workInfo: {
+    designation: { type: String, required: true },
+    employmentType: { type: String, enum: ['full_time', 'part_time', 'contract', 'intern'], required: true },
+    joinDate: { type: Date, required: true },
+    probationEndDate: { type: Date },
+    workLocation: { type: String, trim: true },
+    status: {
+      type: String,
+      enum: ['active', 'probation', 'on_leave', 'terminated', 'resigned'],
+      default: 'active'
+    },
+    exitDate: { type: Date },
+    exitReason: { type: String, enum: ['resignation', 'termination', 'retirement', 'end_of_contract'] },
+  },
+
+  // bankDetails
+  bankDetails: {
+    bankName: { type: String, trim: true },
+    branch: { type: String, trim: true },
     accountNumber: { type: String },
+    ifscCode: { type: String },
+
   },
-
-  // Leave and Attendance
-  leaveBalance: {
-    type: Number,
-    default:21
+  compensation: {
+    currentSalary: { type: Number, min: 0 },
+    currency: { type: String, default: 'USD' }
   },
-  attendanceRecords: [
-    {
-      date: { type: Date },
-      status: { type: String, enum: ['Present', 'Absent', 'On Leave'], default: 'Present' }
-    }
-  ],
+  // Soft Delete Fields
+  isDeleted: { type: Boolean, default: false, index: true },
+  deletedAt: { type: Date, default: null },
+  deletedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
 
-  // Performance and Documents
-  performanceReviews: [
-    {
-      date: { type: Date },
-      reviewText: { type: String },
-      rating: { type: Number, min: 1, max: 5 }
-    }
-  ],
+  documents: [{
+    type: { type: String, enum: ['contract', 'id_proof', 'certification', 'resume', 'offer_letter', 'other'], required: true },
+    url: { type: String, required: true },
+    originalName: { type: String },
+    uploadedAt: { type: Date, default: Date.now }
+  }],
 
-  // Security
-  password: { type: String, required: true },  // hashed password
-  passwordChangedAt: Date,
-  role: { type: String, enum: ['Employee', 'HR', 'Admin'], default: 'Employee' },
-  department: {
-    type: Schema.Types.ObjectId,
-    ref: 'Department'
+  emergencyContact: {
+    name: { type: String, trim: true },
+    phone: { type: String },
+    relationship: { type: String, trim: true }
   }
+
 }, {
   timestamps: true,
-  
+  toJSON: {
+    virtuals: true,
+    transform: function (doc, ret: Record<string, any>) {
+      delete ret.__v;
+      ret.id = ret._id;
+      delete ret._id;
+      return ret;
+    }
+  },
+  toObject: { virtuals: true }
 });
 
-// Middleware to automatically populate the 'employees' field
-// employeeSchema.pre(/^find/, function (next) {
-//   this.populate({
-//     path: 'department',
-//     select: 'name', // Only include specific fields
-//   });
-//   next();
-// });
+// Virtual for full name
+employeeSchema.virtual('fullName').get(function (this: IEmployee) {
+  return `${this.personalInfo.firstName} ${this.personalInfo.lastName}`;
+});
 
-
-// Hash the password before saving it into the database
-employeeSchema.pre("save", async function (next)  {
-  if (!this.isModified("password")) {
-    return next();
-  }
-  // hash this password 
-  this.password = await bcrypt.hash(this.password, 12);
+// Soft delete middleware
+employeeSchema.pre(/^find/, function (this: any, next) {
+  this.where({ isDeleted: false });
   next();
 });
 
+// Indexes
+employeeSchema.index({ departmentId: 1, 'workInfo.status': 1 });
+employeeSchema.index({ 'workInfo.status': 1 });
+employeeSchema.index({ managerId: 1 });
+
 // Export the Employee model
-export default model("Employee", employeeSchema);
+export default model<IEmployee>("Employee", employeeSchema);

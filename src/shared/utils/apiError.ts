@@ -1,4 +1,4 @@
-export class AppError extends Error {
+export class ApiError extends Error {
   public statusCode: number;
   public status: string;
   public isOperational: boolean;
@@ -12,31 +12,31 @@ export class AppError extends Error {
   }
 }
 
-export class BadRequestError extends AppError {
+export class BadRequestError extends ApiError {
   constructor(message: string = 'Bad Request') {
     super(message, 400);
   }
 }
 
-export class UnauthorizedError extends AppError {
+export class UnauthorizedError extends ApiError {
   constructor(message: string = 'Unauthorized') {
     super(message, 401);
   }
 }
 
-export class ForbiddenError extends AppError {
+export class ForbiddenError extends ApiError {
   constructor(message: string = 'Forbidden') {
     super(message, 403);
   }
 }
 
-export class NotFoundError extends AppError {
+export class NotFoundError extends ApiError {
   constructor(message: string = 'Resource not found') {
     super(message, 404);
   }
 }
 
-export class ConflictError extends AppError {
+export class ConflictError extends ApiError {
   constructor(message: string = 'Conflict') {
     super(message, 409);
   }
